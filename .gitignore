@@ -1,0 +1,6 @@
+/venv/
+/.idea/
+/testdata/
+/data/
+/__pycache__/
+/signsmodel/
