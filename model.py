@@ -11,8 +11,8 @@ class trafficSigns:
     def __init__(self):
         self.model = models.Sequential()
 
-    def __resizeImagesFromDir(self, dir, files, size=(32, 32)):
-        x = np.array([cv.resize(cv.imread(fileName), size, interpolation=cv.INTER_AREA) for fileName in files])
+    def __resizeImagesFromDir(self, dir, files, prefix = '', size=(32, 32)):
+        x = np.array([cv.resize(cv.imread(prefix + fileName), size, interpolation=cv.INTER_AREA) for fileName in files])
         y = np.array([dir] * len(files))
 
         return (x, y)
@@ -31,7 +31,7 @@ class trafficSigns:
         self.trainXnormalized = self.__normalizeData(self.trainX)
 
         files = pd.read_csv('data/Test.csv')['Path']
-        self.testX = np.array([cv.resize(cv.imread("data/" + fileName), size, interpolation=cv.INTER_AREA) for fileName in files])
+        self.testX,_ = self.__resizeImagesFromDir(0, files, 'data/')
         self.testY = np.array(pd.read_csv('data/Test.csv')['ClassId'])
 
         ## normalization
@@ -48,10 +48,10 @@ class trafficSigns:
     def loadNames(self, path):
         self.signNames = pd.read_csv(path)
 
-    def __normalizeData(self, data):
+    def __normalizeData(self, data): # to 0 - 255 to 0-1
         sum = np.sum(data/3, axis=3, keepdims=True)
 
-        return (sum-128)/128
+        return (sum)/256
 
     def train(self, epochs):
         # Conv 32x32x1 => 28x28x6.
@@ -98,18 +98,31 @@ class trafficSigns:
         # plt.legend(loc='upper right')
         # plt.title('Training and Validation Loss')
 
+    def evaluate(self):
+        self.model.evaluate(x=self.testXnormalized, y=self.testY)
+
     def saveModel(self, modelname):
         self.model.save(modelname)
 
     def loadModel(self, modelname):
         self.model = tf.keras.models.load_model(modelname)
 
-    def testImage(self, image):
+    def testImageFromPath(self, image):
         image = cv.resize(cv.imread(image), (32, 32), interpolation=cv.INTER_AREA)
 
         sum = np.sum(image / 3, axis=2, keepdims=True)
-        image = (sum - 128) / 128
+        image = (sum) / 256
 
         plt.title(self.signNames.loc[self.signNames['ClassId'] == np.argmax(self.model.predict(np.array([image]))), 'SignName'].values[0])
         plt.imshow(image.squeeze(), cmap='gray')
         plt.show()
+
+    def testImageFromArray(self, image):
+        if (image.shape[:2][0] > 32 and image.shape[:2][1] > 32):
+            image = cv.resize(image, (32, 32), interpolation=cv.INTER_AREA)
+
+            sum = np.sum(image / 3, axis=2, keepdims=True)
+            image = (sum - 128) / 128
+
+            return self.signNames.loc[self.signNames['ClassId'] == np.argmax(self.model.predict(np.array([image]))), 'SignName'].values[0]
+        return None
