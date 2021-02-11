@@ -4,14 +4,12 @@ import cv2 as cv
 class objectDetection:
 
     def __init__(self):
-        self.lower_blue = np.array([0, 0, 0])
-        self.upper_blue = np.array([0, 0, 0])
-        self.lower_red = np.array([0, 0, 0])
-        self.upper_red = np.array([0, 0, 0])
-        self.lower_yellow = np.array([0, 0, 0])
-        self.upper_yellow = np.array([0, 0, 0])
-        self.font = cv.FONT_HERSHEY_SIMPLEX
+        self.__lower_range = []
+        self.__upper_range = []
+        self.__font = cv.FONT_HERSHEY_SIMPLEX
         self.__boundingBoxPadding = 100
+        self.__threshold = 100
+        self.__fontSize = 1
 
     def videoCapture(self, model, windowHeight):
         cap = cv.VideoCapture(0)
@@ -21,23 +19,28 @@ class objectDetection:
             img = cv.resize(img, self.__scaleImage(img.shape[:2], windowHeight))
             hsv = cv.cvtColor(img, cv.COLOR_BGR2HSV)
 
-            mask_red = cv.inRange(hsv, self.lower_red, self.upper_red)
-            mask_blue = cv.inRange(hsv, self.lower_blue, self.upper_blue)
-            mask_yellow = cv.inRange(hsv, self.lower_yellow, self.upper_yellow)
-            mask = mask_red + mask_blue + mask_yellow
+            mask = cv.inRange(hsv, self.__lower_range[0], self.__upper_range[0])
+
+            for i in range(1, len(self.__lower_range)):
+                mask += cv.inRange(hsv, self.__lower_range[i], self.__upper_range[i])
 
             contours = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)[-2]
 
-            if len(contours) > 0:
-                area = max(contours, key=cv.contourArea)
-                (x, y, width, height) = cv.boundingRect(area)
-                points = self.__getPoints(img.shape[:2], self.__boundingBoxPadding, (x, y, width, height))
-                cropped_image = img[points[1]:points[3], points[0]:points[2]]
-                out = model.testImageFromArray(cropped_image)
-                if out != None:
-                    cv.rectangle(img, (points[0], points[1]), (points[2], points[3]), (0, 255, 0), 2)
-                    cv.putText(img, out, (points[0], points[1] + 30), self.font, 1, (0, 255, 0), 2)
+            for contour in contours:
+                approx = cv.approxPolyDP(contour, 0.1 * cv.arcLength(contour, True), True)
+                (x, y, width, height) = cv.boundingRect(approx)
 
+
+                if width > self.__threshold and height > self.__threshold and width/height > 0.9 and width/height < 1.1:
+                    try:
+                        cropped_image = img[y-self.__boundingBoxPadding:y+height+self.__boundingBoxPadding, x-self.__boundingBoxPadding:x+width+self.__boundingBoxPadding]
+                        out = model.testImageFromArray(cropped_image)
+
+                        if out != None:
+                            cv.rectangle(img, (x-self.__boundingBoxPadding, y-self.__boundingBoxPadding), (x+width+self.__boundingBoxPadding, y+height+self.__boundingBoxPadding), (0, 255, 0), 2)
+                            cv.putText(img, out, (x-self.__boundingBoxPadding, y-self.__boundingBoxPadding + 30), self.__font, 1, (0, 255, 0), 2)
+                    except:
+                        None
             cv.imshow('', img)
             k = cv.waitKey(5)
             if k == 27:
@@ -46,40 +49,33 @@ class objectDetection:
         cap.release()
         cv.destroyAllWindows()
 
-    def fromImage(self, model, pathImg, windowSize, mode):
+    def fromImage(self, model, pathImg, windowSize):
         img = cv.imread(pathImg)
         img = cv.resize(img, self.__scaleImage(img.shape[:2], windowSize))
         hsv = cv.cvtColor(img, cv.COLOR_BGR2HSV)
 
-        mask_red = cv.inRange(hsv, self.lower_red, self.upper_red)
-        mask_blue = cv.inRange(hsv, self.lower_blue, self.upper_blue)
-        mask_yellow = cv.inRange(hsv, self.lower_yellow, self.upper_yellow)
-        mask = mask_red + mask_blue + mask_yellow
+        mask = cv.inRange(hsv, self.__lower_range[0], self.__upper_range[0])
+
+        for i in range(1, len(self.__lower_range)):
+            mask += cv.inRange(hsv, self.__lower_range[i], self.__upper_range[i])
 
         contours = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)[-2]
 
-        if mode == False:
-            for contour in contours:
-                approx = cv.approxPolyDP(contour, 0.01 * cv.arcLength(contour, True), True)
-                (x, y, width, height) = cv.boundingRect(approx)
-                points = self.__getPoints(img.shape[:2], self.__boundingBoxPadding, (x, y, width, height))
+        for contour in contours:
+            approx = cv.approxPolyDP(contour, 0.01 * cv.arcLength(contour, True), True)
+            (x, y, width, height) = cv.boundingRect(approx)
 
-                cropped_image = img[points[1]:points[3], points[0]:points[2]]
-                out = model.testImageFromArray(cropped_image)
+            if width > self.__threshold and height > self.__threshold and width / height > 0.9 and width / height < 1.1:
+                try:
+                    cropped_image = img[y - self.__boundingBoxPadding:y + height + self.__boundingBoxPadding, x - self.__boundingBoxPadding:x + width + self.__boundingBoxPadding]
+                    out = model.testImageFromArray(cropped_image)
 
-                cv.putText(img, out, (points[0], points[1] + 30), self.font, 1, (0, 255, 0), 2)
-                cv.rectangle(img, (points[0], points[1]), (points[2], points[3]), (0, 255, 0), 3)
-        else:
-            area = max(contours, key=cv.contourArea)
-            (x, y, width, height) = cv.boundingRect(area)
-            points = self.__getPoints(img.shape[:2], self.__boundingBoxPadding, (x, y, width, height))
-
-            cropped_image = img[points[1]:points[3], points[0]:points[2]]
-            out = model.testImageFromArray(cropped_image)
-
-            cv.putText(img, out, (points[0], points[1] + 30), self.font, 1, (0, 255, 0), 2)
-            cv.rectangle(img, (points[0], points[1]), (points[2], points[3]), (0, 255, 0), 3)
-
+                    if out != None:
+                        cv.rectangle(img, (x - self.__boundingBoxPadding, y - self.__boundingBoxPadding), (
+                        x + width + self.__boundingBoxPadding, y + height + self.__boundingBoxPadding), (0, 255, 0), 2)
+                        cv.putText(img, out, (x - self.__boundingBoxPadding, y - self.__boundingBoxPadding + 30), self.__font, self.__fontSize, (0, 255, 0), 2)
+                except:
+                    None
 
         cv.imshow('', img)
         cv.waitKey()
@@ -107,3 +103,18 @@ class objectDetection:
     def __scaleImage(self, size, desiredHeight):
         ratio = size[1] / size[0]
         return (int(desiredHeight * ratio), int(desiredHeight))
+
+    def addLowerRange(self, range):
+        self.__lower_range.append(range)
+
+    def addUpperRange(self, range):
+        self.__upper_range.append(range)
+
+    def setThreshold(self, range):
+        self.__threshold = range
+
+    def setFontSize(self, size):
+        self.__fontSize = size
+
+    def setFont(self, font):
+        self.__font = font
