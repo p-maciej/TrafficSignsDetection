@@ -5,33 +5,37 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
 
 
 class trafficSigns:
     def __init__(self):
         self.model = models.Sequential()
 
-    def __resizeImagesFromDir(self, dir, files, prefix = '', size=(32, 32)):
-        x = np.array([cv.resize(cv.imread(prefix + fileName), size, interpolation=cv.INTER_AREA) for fileName in files])
-        y = np.array([dir] * len(files))
+    def __resizeImagesFromDir(self, files, prefix = '', size=(32, 32)):
+        return np.array([cv.resize(cv.imread(prefix + fileName), size, interpolation=cv.INTER_AREA) for fileName in files])
 
-        return (x, y)
-
-    def loadData(self, size=(32, 32)):
-        self.trainX, self.trainY = self.__resizeImagesFromDir(0, glob.glob('data/Train/'+str(0)+'/*.png'))
+    def loadData(self):
+        print("Loading directory: 0")
+        files = glob.glob('data/Train/0/*.png')
+        self.trainX = self.__resizeImagesFromDir(files)
+        self.trainY = np.array([0] * len(files))
 
         for label in range(1, 43):
-            print(label)
-            filelist = glob.glob('data/Train/'+str(label)+'/*.png')
-            x, y = self.__resizeImagesFromDir(label, filelist)
+            print("Loading directory: " + str(label))
+            files = glob.glob('data/Train/' + str(label) + '/*.png')
+            x = self.__resizeImagesFromDir(files)
+            y = np.array([label] * len(files))
+
             self.trainX = np.concatenate((self.trainX ,x))
             self.trainY = np.concatenate((self.trainY ,y))
 
         ## normalization
         self.trainXnormalized = self.__normalizeData(self.trainX)
 
+        print("Loading test data...")
         files = pd.read_csv('data/Test.csv')['Path']
-        self.testX,_ = self.__resizeImagesFromDir(0, files, 'data/')
+        self.testX = self.__resizeImagesFromDir(files, 'data/')
         self.testY = np.array(pd.read_csv('data/Test.csv')['ClassId'])
 
         ## normalization
@@ -39,11 +43,7 @@ class trafficSigns:
 
 
     def splitData(self, rate):
-        indices = np.random.permutation(self.trainX.shape[0])
-        split_idx = int(self.trainX.shape[0] * rate)
-        train_idx, val_idx = indices[:split_idx], indices[split_idx:]
-        self.trainXReady, self.validationXReady = self.trainXnormalized[train_idx, :], self.trainXnormalized[val_idx, :]
-        self.trainYReady, self.validationYReady = self.trainY[train_idx], self.trainY[val_idx]
+        self.trainXReady, self.validationXReady,self.trainYReady, self.validationYReady = train_test_split(self.trainXnormalized, self.trainY, test_size=1-rate, shuffle=True)
 
     def loadNames(self, path):
         self.signNames = pd.read_csv(path)
@@ -61,7 +61,7 @@ class trafficSigns:
         self.model.add(layers.Flatten())
         self.model.add(layers.Dense(120, activation='tanh'))
         self.model.add(layers.Dense(84, activation='tanh'))
-        self.model.add(layers.Dropout(0.3))
+        self.model.add(layers.Dropout(0.4))
         self.model.add(layers.Dense(43, activation='sigmoid'))
 
         self.model.summary()
@@ -79,15 +79,16 @@ class trafficSigns:
         plt.plot(range(self.__epochs), accuracy[1], label='Validation Accuracy')
         plt.legend(loc='lower right')
         plt.title('Training and Validation Accuracy')
-        plt.show()
-        #plt.savefig(pltName1)
+        plt.savefig(pltName1)
+        plt.close()
 
         plt.plot(range(self.__epochs), loss[0], label='Training Loss')
         plt.plot(range(self.__epochs), loss[1], label='Validation Loss')
         plt.legend(loc='upper right')
         plt.title('Training and Validation Loss')
-        plt.show()
-        #plt.savefig(pltName2)
+        plt.savefig(pltName2)
+        plt.close()
+
     def evaluate(self):
         self.model.evaluate(x=self.testXnormalized, y=self.testY)
 
