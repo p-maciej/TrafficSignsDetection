@@ -54,50 +54,40 @@ class trafficSigns:
         return (sum)/256
 
     def train(self, epochs):
-        # Conv 32x32x1 => 28x28x6.
-        self.model.add(layers.Conv2D(filters = 6, kernel_size = (5, 5), strides=(1, 1), padding='valid', activation='relu', data_format = 'channels_last', input_shape = (32, 32, 1)))
-        # Maxpool 28x28x6 => 14x14x6
+        self.model.add(layers.Conv2D(filters = 8, kernel_size = (5, 5), strides=(1, 1), padding='valid', activation='relu', input_shape = (32, 32, 1))) #tanh works well too
+        self.model.add(layers.AvgPool2D((2, 2)))
+        self.model.add(layers.Conv2D(32, (5, 5), activation='tanh'))
         self.model.add(layers.MaxPooling2D((2, 2)))
-        # Conv 14x14x6 => 10x10x16
-        self.model.add(layers.Conv2D(16, (5, 5), activation='relu'))
-        # Maxpool 10x10x16 => 5x5x16
-        self.model.add(layers.MaxPooling2D((2, 2)))
-        # Flatten 5x5x16 => 400
         self.model.add(layers.Flatten())
-        # Fully connected 400 => 120
-        self.model.add(layers.Dense(120, activation='relu'))
-        # Fully connected 120 => 84
-        self.model.add(layers.Dense(84, activation='relu'))
-        # Dropout
-        self.model.add(layers.Dropout(0.2))
-        # Fully connected, output layer 84 => 43
-        self.model.add(layers.Dense(43, activation='softmax'))
+        self.model.add(layers.Dense(120, activation='tanh'))
+        self.model.add(layers.Dense(84, activation='tanh'))
+        self.model.add(layers.Dropout(0.3))
+        self.model.add(layers.Dense(43, activation='sigmoid'))
 
         self.model.summary()
 
-        self.model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+        self.model.compile(optimizer='adam', loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True), metrics=['accuracy'])
 
-        # training batch_size=128, epochs=10
-        self.model.fit(self.trainXReady, self.trainYReady, batch_size=128, epochs=epochs, validation_data=(self.validationXReady, self.validationYReady))
-        #
-        # acc = [conv.history['accuracy'], conv.history['val_accuracy']]
-        # loss = [conv.history['loss'], conv.history['val_loss']]
-        #
-        # epoch = range(10)
-        #
-        # plt.figure(figsize=(12, 6))
-        # plt.subplot(1, 2, 1)
-        # plt.plot(epoch, acc[0], label='Training Accuracy')
-        # plt.plot(epoch, acc[1], label='Validation Accuracy')
-        # plt.legend(loc='lower right')
-        # plt.title('Training and Validation Accuracy')
-        #
-        # plt.subplot(1, 2, 2)
-        # plt.plot(epoch, loss[0], label='Training Loss')
-        # plt.plot(epoch, loss[1], label='Validation Loss')
-        # plt.legend(loc='upper right')
-        # plt.title('Training and Validation Loss')
+        self.__model_fit = self.model.fit(self.trainXReady, self.trainYReady, batch_size=128, epochs=epochs, validation_data=(self.validationXReady, self.validationYReady))
+        self.__epochs = epochs
 
+    def showTrainHistoryData(self, pltName1, pltName2):
+        accuracy = [self.__model_fit.history['accuracy'], self.__model_fit.history['val_accuracy']]
+        loss = [self.__model_fit.history['loss'], self.__model_fit.history['val_loss']]
+
+        plt.plot(range(self.__epochs), accuracy[0], label='Training Accuracy')
+        plt.plot(range(self.__epochs), accuracy[1], label='Validation Accuracy')
+        plt.legend(loc='lower right')
+        plt.title('Training and Validation Accuracy')
+        plt.show()
+        #plt.savefig(pltName1)
+
+        plt.plot(range(self.__epochs), loss[0], label='Training Loss')
+        plt.plot(range(self.__epochs), loss[1], label='Validation Loss')
+        plt.legend(loc='upper right')
+        plt.title('Training and Validation Loss')
+        plt.show()
+        #plt.savefig(pltName2)
     def evaluate(self):
         self.model.evaluate(x=self.testXnormalized, y=self.testY)
 
