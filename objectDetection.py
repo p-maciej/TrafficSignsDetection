@@ -30,7 +30,7 @@ class objectDetection:
                 (x, y, width, height) = cv.boundingRect(approx)
 
 
-                if width > self.__threshold and height > self.__threshold and width/height > 0.9 and width/height < 1.1:
+                if width > self.__threshold and height > self.__threshold and width/height > 0.8 and width/height < 1.2:
                     try:
                         cropped_image = img[y-self.__boundingBoxPadding:y+height+self.__boundingBoxPadding, x-self.__boundingBoxPadding:x+width+self.__boundingBoxPadding]
                         out = model.testImageFromArray(cropped_image)
@@ -64,14 +64,13 @@ class objectDetection:
             approx = cv.approxPolyDP(contour, 0.01 * cv.arcLength(contour, True), True)
             (x, y, width, height) = cv.boundingRect(approx)
 
-            if width > self.__threshold and height > self.__threshold and width / height > 0.9 and width / height < 1.1:
+            if width > self.__threshold and height > self.__threshold and width / height > 0.8 and width / height < 1.2:
                 try:
                     cropped_image = img[y - self.__boundingBoxPadding:y + height + self.__boundingBoxPadding, x - self.__boundingBoxPadding:x + width + self.__boundingBoxPadding]
                     out = model.testImageFromArray(cropped_image)
 
                     if out != None:
-                        cv.rectangle(img, (x - self.__boundingBoxPadding, y - self.__boundingBoxPadding), (
-                        x + width + self.__boundingBoxPadding, y + height + self.__boundingBoxPadding), (0, 255, 0), 2)
+                        cv.rectangle(img, (x - self.__boundingBoxPadding, y - self.__boundingBoxPadding), (x + width + self.__boundingBoxPadding, y + height + self.__boundingBoxPadding), (0, 255, 0), 2)
                         cv.putText(img, out, (x - self.__boundingBoxPadding, y - self.__boundingBoxPadding + 30), self.__font, self.__fontSize, (0, 255, 0), 2)
                 except:
                     None

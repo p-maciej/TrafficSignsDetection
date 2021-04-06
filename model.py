@@ -51,7 +51,7 @@ class trafficSigns:
     def __normalizeData(self, data): # to 0 - 255 to 0-1
         sum = np.sum(data/3, axis=3, keepdims=True)
 
-        return (sum)/256
+        return sum/256
 
     def train(self, epochs):
         self.model.add(layers.Conv2D(filters = 8, kernel_size = (5, 5), strides=(1, 1), padding='valid', activation='relu', input_shape = (32, 32, 1))) #tanh works well too
@@ -102,7 +102,7 @@ class trafficSigns:
         image = cv.resize(cv.imread(image), (32, 32), interpolation=cv.INTER_AREA)
 
         sum = np.sum(image / 3, axis=2, keepdims=True)
-        image = (sum) / 256
+        image = sum / 256
 
         plt.title(self.signNames.loc[self.signNames['ClassId'] == np.argmax(self.model.predict(np.array([image]))), 'SignName'].values[0])
         plt.imshow(image.squeeze(), cmap='gray')
@@ -113,7 +113,7 @@ class trafficSigns:
             image = cv.resize(image, (32, 32), interpolation=cv.INTER_AREA)
 
             sum = np.sum(image / 3, axis=2, keepdims=True)
-            image = (sum - 128) / 128
+            image = sum / 256
 
             return self.signNames.loc[self.signNames['ClassId'] == np.argmax(self.model.predict(np.array([image]))), 'SignName'].values[0]
         return None
